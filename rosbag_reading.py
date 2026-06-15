@@ -118,9 +118,9 @@ class MultiBagGUI(QWidget):
                 data['max_line'].set_ydata([v_max, v_max])
                 data['max_line'].set_label(f"Max ({v_max:.3f})")
                 
-                # FIX: Auto-Scale the Y-axis so the Min and Max are ALWAYS visible
-                y_margin = (v_max - v_min) * 0.1 # Add a 10% padding to top and bottom
-                if y_margin == 0: y_margin = 0.5 # Fallback if speed is constant
+                # Auto-Scale the Y-axis so the Min and Max are ALWAYS visible
+                y_margin = (v_max - v_min) * 0.1 
+                if y_margin == 0: y_margin = 0.5 
                 
                 ax.set_ylim(v_min - y_margin, v_max + y_margin)
                 
@@ -164,6 +164,9 @@ class MultiBagGUI(QWidget):
         else:
             self.bag_paths = file_paths
 
+        # --- NEW: Remember the user's previous topic selection ---
+        old_topic = self.topic_combo.currentText()
+
         self.label.setText(f"Loaded {len(self.bag_paths)} bags. Scanning structure of the first bag...")
         QApplication.processEvents()
 
@@ -174,19 +177,32 @@ class MultiBagGUI(QWidget):
             self.topic_combo.clear()
             self.topic_combo.addItem("Select Topic...")
             self.topic_combo.addItems(topics)
+            
+            # Check if the previously selected topic exists in the new bag file
+            topic_retained = False
+            if old_topic != "Select Topic..." and old_topic in topics:
+                self.topic_combo.setCurrentText(old_topic)
+                topic_retained = True
+                
             self.topic_combo.setEnabled(True)
             self.topic_combo.blockSignals(False)
             
+        # If the topic exists, pass control down to check the variables
+        if topic_retained:
+            self.on_topic_selected(old_topic)
+        else:
             self.field_combo.clear()
             self.field_combo.setEnabled(False)
-
-        self.label.setText("2. Select a Topic from the dropdown menu.")
+            self.label.setText("2. Select a Topic from the dropdown menu.")
 
     def on_topic_selected(self, topic):
         if not self.bag_paths or topic == "Select Topic...": return
 
         self.label.setText(f"Analyzing structure of {topic}...")
         QApplication.processEvents()
+
+        # --- NEW: Remember the user's previous variable selection ---
+        old_field = self.field_combo.currentText()
 
         with AnyReader([Path(self.bag_paths[0])]) as reader:
             connections = [x for x in reader.connections if x.topic == topic]
@@ -199,10 +215,23 @@ class MultiBagGUI(QWidget):
         self.field_combo.clear()
         self.field_combo.addItem("Select Variable...")
         self.field_combo.addItems(available_fields)
+        
+        # Check if the previously selected variable exists within this topic's new structure
+        field_retained = False
+        if old_field != "Select Variable..." and old_field in available_fields:
+            self.field_combo.setCurrentText(old_field)
+            field_retained = True
+            
         self.field_combo.setEnabled(True)
         self.field_combo.blockSignals(False)
 
-        self.label.setText("3. Select a specific Variable to plot across all bags.")
+        # If both matches are valid, execute the automatic plot generation immediately
+        if field_retained:
+            self.label.setText(f"Automatically extracting {old_field} from all bags...")
+            QApplication.processEvents()
+            self.plot_all_bags(topic, old_field)
+        else:
+            self.label.setText("3. Select a specific Variable to plot across all bags.")
 
     def on_field_selected(self, field):
         if field == "Select Variable...": return
@@ -283,8 +312,6 @@ class MultiBagGUI(QWidget):
         self.fig.tight_layout()
         self.canvas.draw()
         
-        # FIX: Programmatically turn on the "Zoom to Rectangle" mode by default!
-        # This way you don't need to manually click the icon to start drawing selection boxes.
         if self.toolbar.mode == '': 
             self.toolbar.zoom()
 
