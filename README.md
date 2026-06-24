@@ -23,9 +23,12 @@ git clone https://github.com/IlhamAkbar021/rosbag_reading.git
 
 1. Clone the repository.
 2. Run the application.
-3. Select the directory containing the bag files.
-4. Load up to **5 bag files** for analysis.
-5. The tool will process the data and generate plots and analysis results automatically.
+   ```bash
+   rosbag_reading.py
+   ```
+4. Select the directory containing the bag files.
+5. Load up to **3 bag files or 5 bags files** for analysis.
+6. The tool will process the data and generate plots and analysis results automatically.
 
 ## Example Plot
 
